@@ -1,13 +1,12 @@
-FROM node:21-alpine3.18
-
+FROM node:21-alpine3.18 AS builder
 WORKDIR /react-app
-
 COPY ./package*.json /react-app
-
 RUN npm install --verbose
-
 COPY . .
+RUN npm run build
 
-EXPOSE 3000
 
-CMD ["npm","start"]
+FROM nginx:1.25.5-alpine
+COPY --from=builder /react-app/build /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon-off;"]
