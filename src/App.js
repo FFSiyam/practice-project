@@ -10,7 +10,7 @@ function App() {
           Edit <code>src/App.js</code> and save to reload.
         </p>
         <p>Fahim Faysal Siyam</p>
-        <p>V2</p>
+        <p>Multi stage docker</p>
         <a
           className="App-link"
           href="https://reactjs.org"
