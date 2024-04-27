@@ -3,10 +3,10 @@ WORKDIR /react-app
 COPY ./package*.json /react-app
 RUN npm install --verbose
 COPY . .
+EXPOSE 3000
 RUN npm run build
 
 
 FROM nginx:1.25.5-alpine
 COPY --from=builder /react-app/build /usr/share/nginx/html
-EXPOSE 3000
 CMD ["nginx", "-g", "daemon-off;"]
