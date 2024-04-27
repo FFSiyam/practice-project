@@ -1,8 +1,18 @@
 pipeline {
     agent any
     environment {
-        registry = 'siyam05/siyamapp'
-        registryCredential = 'docker-token'
+        registry = 'us-central1-docker.pkg.dev/sanbox-credit/fromjenkins'
+        registryCredential = 'gcloud-cred'
+       // googleCred2 = 'gcloud-cred'
+        googleCred = credentials('gcloud-cred')
+        PROJECT_ID = 'sanbox-credit'
+        //IMAGE_NAME = 'us-central1-docker.pkg.dev/sanbox-credit/fromjenkins'
+
+        PROJECT = "sanbox-credit"
+        APP_NAME = "testapp"
+        REPO_NAME = "fromjenkins"
+        REPO_LOCATION = "us-central1"
+        IMAGE_NAME = "${REPO_LOCATION}-docker.pkg.dev/${PROJECT}/${REPO_NAME}/${APP_NAME}"
     }
     stages {
         stage('Fetch code') {
@@ -20,53 +30,38 @@ pipeline {
                 sh 'npm run build'
             }
         }
-      
-//using the plugin
 
-        stage('build the image') {
-            steps {
-                script {
-                    dockerImage = docker.build registry + ":v$BUILD_NUMBER"
-                }
-            }
+        stage('gcloud connect') {
+        steps{
+            sh 'gcloud version'
+            sh 'gcloud auth activate-service-account --key-file="$googleCred"'
+            sh 'gcloud compute zones list'
+            sh 'gcloud config set compute/region us-central1'
+            sh 'gcloud config set compute/zone us-central1-a'
+
         }
-
-        stage("upload image") {
-            steps {
-                script {
-                    docker.withRegistry('', registryCredential) {
-                        dockerImage.push("v$BUILD_NUMBER")
-                        dockerImage.push("latest")
-                    }
-                }
+    }
+    
+   stage('Build docker image') {
+    when { expression { true } }
+      steps{
+        container('docker'){
+          dir('Backend Net/MyDotnet') {
+            echo 'Build docker image Start'
+            sh 'pwd'
+            sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
+            withCredentials([file(credentialsId: 'gcloud-cred', variable: 'gcloud-cred')]){
+              sh 'cat "${GCR_CRED}" | docker login -u _json_key_base64 --password-stdin https://"${REPO_LOCATION}"-docker.pkg.dev'
+              sh 'docker push ${IMAGE_NAME}:${IMAGE_TAG}'
+              sh 'docker logout https://"${REPO_LOCATION}"-docker.pkg.dev'
             }
+            sh 'docker rmi ${IMAGE_NAME}:${IMAGE_TAG}'
+            echo 'Build docker image Finish'
+          }
         }
-
-        stage("remove unused image") {
-            steps {
-                sh "docker rmi $registry:v$BUILD_NUMBER"
-            }
-        }
-
- //Anothe Way of uploading
-
-   // stage('docker file build') {
-        //     steps {
-        //         sh 'sudo docker build -t siyamapp:1.0 .'
-        //     }
-        // }
-
-    //     stage('push') {
-    //         steps{
-    //             withCredentials([usernamePassword(credentialsId: 'docker-token', passwordVariable: 'DOCKERHUB_PASSWORD', usernameVariable: 'DOCKERHUB_USERNAME')]) {
-    //                 sh 'sudo docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_PASSWORD'
-    //                 sh 'sudo docker tag siyamapp:1.0 siyam05/siyamapp:1.0'
-    //                 sh 'sudo docker push siyam05/siyamapp:1.0'
-    //                 sh 'sudo docker logout'
-    //         }
-            
-    //     }
-
-    // }
+      }
+    }
+     
+    
 }
 }
